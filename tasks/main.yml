@@ -1,0 +1,26 @@
+- name: Create group www-data
+  group:
+   name: www-data
+   state: present
+
+- name: Creating user www-data
+  user:
+    name: www-data
+    group: www-data
+    state: present
+
+- name: Install EPEL repo
+  yum:
+    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    state: installed
+
+- name: Install nginx
+  yum:
+    name: nginx
+    state: latest
+
+- import_tasks: letsencrypt.yml
+  when: use_letsencrypt
+
+- import_tasks: selfsigned.yml
+  when: not use_letsencrypt

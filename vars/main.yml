@@ -1,0 +1,5 @@
+#Uncomment and define these vars.  Or better yet, define them in group_vars or host_vars.
+#nginx_domain_name:
+#app_port:
+#letsencrypt_email:
+#use_letsencrypt:

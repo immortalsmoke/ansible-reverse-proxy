@@ -1,0 +1,98 @@
+# Sets up nginx with a self-signed certificate and redirects HTTP/S traffic to a given application port
+
+- name: Remove default nginx config
+  file: 
+    name: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Install system nginx config
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+
+- name: Create sites-enabled folder
+  file:
+    path: /etc/nginx/sites-enabled
+    state: directory
+
+- name: Create /etc/ssl/private folder
+  file:
+    path: /etc/ssl/private
+    state: directory
+
+- name: Create /etc/ssl/csr folder
+  file:
+    path: /etc/ssl/csr
+    state: directory
+
+- name: Create /etc/ssl/certs folder
+  file:
+    path: /etc/ssl/certs
+    state: directory
+
+- name: Install nginx site for SSL requests
+  template:
+    src: nginx-http.j2
+    dest: /etc/nginx/sites-enabled/http
+
+- name: Reload nginx to activate SSL site
+  systemd: 
+    name: nginx
+    state: restarted
+
+- yum:
+    name: pyOpenSSL
+    state: absent
+
+- easy_install:
+    name: pip
+    state: latest
+
+- pip:
+    name: pyopenssl
+
+- name: Ensure directory exists for local self-signed TLS certs.
+  file:
+    path: /etc/ssl/private/{{ nginx_domain_name }}
+    state: directory
+
+
+
+
+- name: Generate an OpenSSL private key.
+  openssl_privatekey:
+    path: /etc/ssl/private/{{ nginx_domain_name }}/privkey.pem
+
+- name: Generate an OpenSSL CSR.
+  openssl_csr:
+    path: /etc/ssl/csr/{{ nginx_domain_name }}.csr
+    privatekey_path: /etc/ssl/private/{{ nginx_domain_name }}/privkey.pem
+    common_name: "{{ nginx_domain_name }}"
+
+- name: Generate a Self Signed OpenSSL certificate.
+  openssl_certificate:
+    path: /etc/ssl/certs/{{ nginx_domain_name }}.crt
+    privatekey_path: /etc/ssl/private/{{ nginx_domain_name }}/privkey.pem
+    csr_path: /etc/ssl/csr/{{ nginx_domain_name }}.csr
+    provider: selfsigned
+    valid_in: 315576000 # 10 years in seconds
+
+- name: Generate dhparams
+  shell: openssl dhparam -out /etc/nginx/dhparams.pem 2048
+  args:
+    creates: /etc/nginx/dhparams.pem
+
+- name: Install nginx site for specified site
+  template:
+    src: templates/nginx-selfssl.j2
+    dest: /etc/nginx/sites-enabled/selfssl
+
+- name: Reload nginx to activate specified site
+  service:
+    name: nginx
+    state: restarted
+
+- name: restart nginx
+  systemd:
+    name: nginx
+    state: restarted
